@@ -1,0 +1,59 @@
+clc; clear; close all;
+
+% LDPC Code Parameters
+n = 50; % Codeword length
+m = 11; % Block size
+b_max = m - 1; % Maximum burst length
+t_max = 1; % Independent error capability
+window_size = b_max; % Window size for burst decoding
+
+% Parity-Check Matrix (Simple Example)
+H = randi([0 1], [n, n-m]); % Random parity-check matrix (adjust as needed)
+
+% Simulate Burst and Independent Errors
+burst_start = randi([1, n-b_max+1]); % Random burst position
+errors = zeros(1, n);
+errors(burst_start:(burst_start+b_max-1)) = 1; % Insert burst errors
+
+% Add independent errors
+independent_positions = randperm(n, t_max); % Random independent error positions
+for i = 1:t_max
+    errors(independent_positions(i)) = 1;
+end
+
+% Received word (corrupted version of the codeword)
+received_word = mod(errors, 2);
+
+% Sliding Window Decoding
+decoded = zeros(1, n);
+success = false;
+for start_pos = 1:(n - window_size + 1)
+    % Extract current window
+    window = received_word(start_pos:(start_pos + window_size - 1));
+    % Decode using parity-check matrix
+    [decoded_window, flag] = decode_burst(window, H(start_pos:(start_pos + window_size - 1), :));
+    if flag
+        decoded(start_pos:(start_pos + window_size - 1)) = decoded_window;
+        success = true;
+        break;
+    end
+end
+
+if success
+    disp('Decoding successful!');
+else
+    disp('Decoding failed.');
+end
+
+% Function to Decode Burst
+function [decoded_window, flag] = decode_burst(window, H_window)
+    % Attempt decoding with syndrome matching
+    syndrome = mod(window * H_window', 2);
+    if all(syndrome == 0)
+        decoded_window = window; % Assume no errors
+        flag = true;
+    else
+        decoded_window = []; % Decoding failed
+        flag = false;
+    end
+end
